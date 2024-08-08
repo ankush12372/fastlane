@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: macos-latest
+    env:
+      KEY_ID: ${{ secrets.KEY_ID }}
+      ISSUER_ID: ${{ secrets.ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+      FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install NPM dependencies
+        run: |
+          cd ./ios
+          npm install
+
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods
+          cd ./ios
+          pod install
+
+      - name: Install Bundler
+        run: gem install bundler
+
+      - name: Install Fastlane and other Gems
+        run: |
+          cd ./ios
+          bundle install
+
+      - name: Match - Certificates and Profiles
+        run: |
+          cd ./ios
+          bundle exec fastlane match appstore
+
+      - name: Build and Deploy to TestFlight
+        run: |
+          cd ./ios
+          bundle exec fastlane ios beta
